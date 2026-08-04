@@ -23,9 +23,16 @@ namespace BetterSuppression
 
         public static ManualLogSource Log { get; private set; }
 
+        // Local Player Settings
         public static ConfigEntry<bool> EnableNoiseSuppression { get; private set; }
         public static ConfigEntry<float> VADThreshold { get; private set; }
         public static ConfigEntry<bool> EnableNoiseGate { get; private set; }
+
+        // Remote Players Settings (다른 플레이어 음성 노이즈 제거)
+        public static ConfigEntry<bool> EnableRemoteNoiseSuppression { get; private set; }
+        public static ConfigEntry<bool> EnableRemoteNoiseGate { get; private set; }
+
+        // Shared Noise Gate DSP Settings
         public static ConfigEntry<float> GateCloseThresholdDb { get; private set; }
         public static ConfigEntry<float> GateOpenThresholdDb { get; private set; }
         public static ConfigEntry<float> GateAttackTimeMs { get; private set; }
@@ -49,14 +56,14 @@ namespace BetterSuppression
 
             // 2. Define BepInEx Configuration Options with English & Korean descriptions
             EnableNoiseSuppression = Config.Bind(
-                "General",
+                "Local Player",
                 "Enable Noise Suppression",
                 true,
-                "Enable RNNoise AI Noise Suppression for microphone input.\nRNNoise AI 기반 소음 억제 기능을 활성화합니다."
+                "Enable RNNoise AI Noise Suppression for your microphone input.\nRNNoise AI 기반 소음 억제 기능을 내 마이크에 활성화합니다."
             );
 
             VADThreshold = Config.Bind(
-                "General",
+                "Local Player",
                 "VAD Threshold",
                 0.0f,
                 new ConfigDescription(
@@ -65,14 +72,30 @@ namespace BetterSuppression
             );
 
             EnableNoiseGate = Config.Bind(
-                "Noise Gate",
+                "Local Player",
                 "Enable Noise Gate",
                 true,
-                "Enable volume-based Noise Gate. Mutes input when audio level is below threshold.\n노이즈 게이트를 활성화합니다. 소리가 설정한 수치 이하라면, 마이크 입력을 차단합니다."
+                "Enable volume-based Noise Gate for your microphone input. Mutes input when audio level is below threshold.\n내 마이크에 노이즈 게이트를 활성화합니다. 소리가 설정한 수치 이하라면, 마이크 입력을 차단합니다."
             );
 
+            // Remote Players Configs
+            EnableRemoteNoiseSuppression = Config.Bind(
+                "Remote Players",
+                "Enable Remote Noise Suppression",
+                true,
+                "Enable RNNoise AI Noise Suppression for incoming voice audio from other players.\n다른 플레이어의 마이크 음성에도 RNNoise AI 노이즈 제거를 적용합니다."
+            );
+
+            EnableRemoteNoiseGate = Config.Bind(
+                "Remote Players",
+                "Enable Remote Noise Gate",
+                true,
+                "Enable volume-based Noise Gate for incoming voice audio from other players.\n다른 플레이어의 마이크 음성에도 노이즈 게이트를 적용합니다."
+            );
+
+            // Noise Gate DSP Configs
             GateCloseThresholdDb = Config.Bind(
-                "Noise Gate",
+                "Noise Gate DSP",
                 "Gate Close Threshold (dB)",
                 -32.0f,
                 new ConfigDescription(
@@ -81,7 +104,7 @@ namespace BetterSuppression
             );
 
             GateOpenThresholdDb = Config.Bind(
-                "Noise Gate",
+                "Noise Gate DSP",
                 "Gate Open Threshold (dB)",
                 -26.0f,
                 new ConfigDescription(
@@ -90,7 +113,7 @@ namespace BetterSuppression
             );
 
             GateAttackTimeMs = Config.Bind(
-                "Noise Gate",
+                "Noise Gate DSP",
                 "Gate Attack Time (ms)",
                 25.0f,
                 new ConfigDescription(
@@ -99,7 +122,7 @@ namespace BetterSuppression
             );
 
             GateHoldTimeMs = Config.Bind(
-                "Noise Gate",
+                "Noise Gate DSP",
                 "Gate Hold Time (ms)",
                 200.0f,
                 new ConfigDescription(
@@ -108,7 +131,7 @@ namespace BetterSuppression
             );
 
             GateReleaseTimeMs = Config.Bind(
-                "Noise Gate",
+                "Noise Gate DSP",
                 "Gate Release Time (ms)",
                 150.0f,
                 new ConfigDescription(
@@ -130,70 +153,28 @@ namespace BetterSuppression
                 }
             }
 
-            // 4. Initialize Audio Processor & Harmony Patches safely
+            // 4. Initialize Audio Processors & Harmony Patches safely
             try
             {
                 DissonancePatch.Initialize();
 
-                if (DissonancePatch.Processor != null)
-                {
-                    DissonancePatch.Processor.IsEnabled = EnableNoiseSuppression.Value;
-                    DissonancePatch.Processor.VADThreshold = VADThreshold.Value;
-                    DissonancePatch.Processor.EnableNoiseGate = EnableNoiseGate.Value;
-                    DissonancePatch.Processor.GateCloseThresholdDb = GateCloseThresholdDb.Value;
-                    DissonancePatch.Processor.GateOpenThresholdDb = GateOpenThresholdDb.Value;
-                    DissonancePatch.Processor.GateAttackTimeMs = GateAttackTimeMs.Value;
-                    DissonancePatch.Processor.GateHoldTimeMs = GateHoldTimeMs.Value;
-                    DissonancePatch.Processor.GateReleaseTimeMs = GateReleaseTimeMs.Value;
-                }
+                ApplyProcessorSettings();
 
-                EnableNoiseSuppression.SettingChanged += (sender, args) =>
-                {
-                    if (DissonancePatch.Processor != null)
-                        DissonancePatch.Processor.IsEnabled = EnableNoiseSuppression.Value;
-                };
+                // Local player setting change handlers
+                EnableNoiseSuppression.SettingChanged += (sender, args) => ApplyProcessorSettings();
+                VADThreshold.SettingChanged += (sender, args) => ApplyProcessorSettings();
+                EnableNoiseGate.SettingChanged += (sender, args) => ApplyProcessorSettings();
 
-                VADThreshold.SettingChanged += (sender, args) =>
-                {
-                    if (DissonancePatch.Processor != null)
-                        DissonancePatch.Processor.VADThreshold = VADThreshold.Value;
-                };
+                // Remote players setting change handlers
+                EnableRemoteNoiseSuppression.SettingChanged += (sender, args) => ApplyProcessorSettings();
+                EnableRemoteNoiseGate.SettingChanged += (sender, args) => ApplyProcessorSettings();
 
-                EnableNoiseGate.SettingChanged += (sender, args) =>
-                {
-                    if (DissonancePatch.Processor != null)
-                        DissonancePatch.Processor.EnableNoiseGate = EnableNoiseGate.Value;
-                };
-
-                GateCloseThresholdDb.SettingChanged += (sender, args) =>
-                {
-                    if (DissonancePatch.Processor != null)
-                        DissonancePatch.Processor.GateCloseThresholdDb = GateCloseThresholdDb.Value;
-                };
-
-                GateOpenThresholdDb.SettingChanged += (sender, args) =>
-                {
-                    if (DissonancePatch.Processor != null)
-                        DissonancePatch.Processor.GateOpenThresholdDb = GateOpenThresholdDb.Value;
-                };
-
-                GateAttackTimeMs.SettingChanged += (sender, args) =>
-                {
-                    if (DissonancePatch.Processor != null)
-                        DissonancePatch.Processor.GateAttackTimeMs = GateAttackTimeMs.Value;
-                };
-
-                GateHoldTimeMs.SettingChanged += (sender, args) =>
-                {
-                    if (DissonancePatch.Processor != null)
-                        DissonancePatch.Processor.GateHoldTimeMs = GateHoldTimeMs.Value;
-                };
-
-                GateReleaseTimeMs.SettingChanged += (sender, args) =>
-                {
-                    if (DissonancePatch.Processor != null)
-                        DissonancePatch.Processor.GateReleaseTimeMs = GateReleaseTimeMs.Value;
-                };
+                // DSP Noise Gate setting change handlers
+                GateCloseThresholdDb.SettingChanged += (sender, args) => ApplyProcessorSettings();
+                GateOpenThresholdDb.SettingChanged += (sender, args) => ApplyProcessorSettings();
+                GateAttackTimeMs.SettingChanged += (sender, args) => ApplyProcessorSettings();
+                GateHoldTimeMs.SettingChanged += (sender, args) => ApplyProcessorSettings();
+                GateReleaseTimeMs.SettingChanged += (sender, args) => ApplyProcessorSettings();
 
                 _harmony = new Harmony(PluginGUID);
                 _harmony.PatchAll(typeof(DissonancePatch));
@@ -203,6 +184,33 @@ namespace BetterSuppression
             catch (Exception ex)
             {
                 Log.LogError(string.Format("Error during Dissonance patch initialization: {0}", ex.Message));
+            }
+        }
+
+        private void ApplyProcessorSettings()
+        {
+            if (DissonancePatch.Processor != null)
+            {
+                DissonancePatch.Processor.IsEnabled = EnableNoiseSuppression.Value;
+                DissonancePatch.Processor.VADThreshold = VADThreshold.Value;
+                DissonancePatch.Processor.EnableNoiseGate = EnableNoiseGate.Value;
+                DissonancePatch.Processor.GateCloseThresholdDb = GateCloseThresholdDb.Value;
+                DissonancePatch.Processor.GateOpenThresholdDb = GateOpenThresholdDb.Value;
+                DissonancePatch.Processor.GateAttackTimeMs = GateAttackTimeMs.Value;
+                DissonancePatch.Processor.GateHoldTimeMs = GateHoldTimeMs.Value;
+                DissonancePatch.Processor.GateReleaseTimeMs = GateReleaseTimeMs.Value;
+            }
+
+            if (DissonancePatch.RemoteProcessor != null)
+            {
+                DissonancePatch.RemoteProcessor.IsEnabled = EnableRemoteNoiseSuppression.Value;
+                DissonancePatch.RemoteProcessor.VADThreshold = VADThreshold.Value;
+                DissonancePatch.RemoteProcessor.EnableNoiseGate = EnableRemoteNoiseGate.Value;
+                DissonancePatch.RemoteProcessor.GateCloseThresholdDb = GateCloseThresholdDb.Value;
+                DissonancePatch.RemoteProcessor.GateOpenThresholdDb = GateOpenThresholdDb.Value;
+                DissonancePatch.RemoteProcessor.GateAttackTimeMs = GateAttackTimeMs.Value;
+                DissonancePatch.RemoteProcessor.GateHoldTimeMs = GateHoldTimeMs.Value;
+                DissonancePatch.RemoteProcessor.GateReleaseTimeMs = GateReleaseTimeMs.Value;
             }
         }
 
@@ -243,57 +251,21 @@ namespace BetterSuppression
         {
             LethalConfigManager.SetModDescription("RNNoise AI Deep Learning Microphone Noise Suppression and Noise Gate Mod for Lethal Company.");
 
-            LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(EnableNoiseSuppression, new BoolCheckBoxOptions
-            {
-                RequiresRestart = false
-            }));
+            // Local Player Controls
+            LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(EnableNoiseSuppression, new BoolCheckBoxOptions { RequiresRestart = false }));
+            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(VADThreshold, new FloatSliderOptions { Min = 0.0f, Max = 1.0f, RequiresRestart = false }));
+            LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(EnableNoiseGate, new BoolCheckBoxOptions { RequiresRestart = false }));
 
-            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(VADThreshold, new FloatSliderOptions
-            {
-                Min = 0.0f,
-                Max = 1.0f,
-                RequiresRestart = false
-            }));
+            // Remote Players Controls
+            LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(EnableRemoteNoiseSuppression, new BoolCheckBoxOptions { RequiresRestart = false }));
+            LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(EnableRemoteNoiseGate, new BoolCheckBoxOptions { RequiresRestart = false }));
 
-            LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(EnableNoiseGate, new BoolCheckBoxOptions
-            {
-                RequiresRestart = false
-            }));
-
-            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateCloseThresholdDb, new FloatSliderOptions
-            {
-                Min = -80.0f,
-                Max = 0.0f,
-                RequiresRestart = false
-            }));
-
-            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateOpenThresholdDb, new FloatSliderOptions
-            {
-                Min = -80.0f,
-                Max = 0.0f,
-                RequiresRestart = false
-            }));
-
-            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateAttackTimeMs, new FloatSliderOptions
-            {
-                Min = 0.0f,
-                Max = 200.0f,
-                RequiresRestart = false
-            }));
-
-            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateHoldTimeMs, new FloatSliderOptions
-            {
-                Min = 0.0f,
-                Max = 1000.0f,
-                RequiresRestart = false
-            }));
-
-            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateReleaseTimeMs, new FloatSliderOptions
-            {
-                Min = 0.0f,
-                Max = 1000.0f,
-                RequiresRestart = false
-            }));
+            // Shared DSP Controls
+            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateCloseThresholdDb, new FloatSliderOptions { Min = -80.0f, Max = 0.0f, RequiresRestart = false }));
+            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateOpenThresholdDb, new FloatSliderOptions { Min = -80.0f, Max = 0.0f, RequiresRestart = false }));
+            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateAttackTimeMs, new FloatSliderOptions { Min = 0.0f, Max = 200.0f, RequiresRestart = false }));
+            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateHoldTimeMs, new FloatSliderOptions { Min = 0.0f, Max = 1000.0f, RequiresRestart = false }));
+            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateReleaseTimeMs, new FloatSliderOptions { Min = 0.0f, Max = 1000.0f, RequiresRestart = false }));
         }
 
         private void OnDestroy()
