@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>BetterSuppression</AssemblyName>
+    <Description>RNNoise AI Noise Suppression Mod for Lethal Company</Description>
+    <Version>1.0.0</Version>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BepInEx.Core" Version="5.4.21" />
+    <PackageReference Include="UnityEngine.Modules" Version="2022.3.9" IncludeAssets="compile" />
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(MSBuildThisFileDirectory)..\참고 모드\AinaVT-LethalConfig\LethalConfig\LethalConfig.dll')">
+    <Reference Include="LethalConfig">
+      <HintPath>$(MSBuildThisFileDirectory)..\참고 모드\AinaVT-LethalConfig\LethalConfig\LethalConfig.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(LETHAL_COMPANY_PATH)\Lethal Company_Data\Managed\DissonanceVoIP.dll')">
+    <Reference Include="DissonanceVoIP">
+      <HintPath>$(LETHAL_COMPANY_PATH)\Lethal Company_Data\Managed\DissonanceVoIP.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
