@@ -16,6 +16,10 @@
   * **Attack / Hold / Release 스무딩**: 25ms 어택, 200ms 홀드, 150ms 릴리스 타임으로 음성 시작과 끝이 끊김 없이 부드럽게 전달됩니다.
 * **🎛️ LethalConfig 인게임 실시간 UI 지원**:
   * 게임 재시작 없이 인게임 메뉴에서 내 마이크, 다른 플레이어 마이크, 노이즈 게이트 슬라이더를 독립적으로 즉시 조절할 수 있습니다.
+* **🔬 마이크 테스트 오버레이 (Mic Test Mode)**:
+  * **F7 키**를 눌러 실시간 마이크 진단 화면을 표시합니다.
+  * FFT 주파수 스펙트럼, dB 레벨 미터, 노이즈 게이트 상태(Open/Hold/Closing/Closed), RNNoise 상태를 한눈에 확인할 수 있습니다.
+  * 노이즈 게이트와 소음 억제가 실제로 작동하는지 시각적으로 검증할 수 있습니다.
 
 ---
 
@@ -23,8 +27,7 @@
 
 | 카테고리 | 설정 항목명 | 설명 | 기본값 |
 | :--- | :--- | :--- | :--- |
-| **Local Player** | `Enable Noise Suppression` | 내 마이크에 RNNoise AI 노이즈 제거 활성화 | `true` |
-| **Local Player** | `VAD Threshold` | 음성 감지 확률 임계값 (0.0 = 비활성화) | `0.0` |
+| **Local Player** | `Enable Noise Suppression` | 내 마이크에 RNNoise AI 노이즈 제거 활성화/비활성화 | `true` |
 | **Local Player** | `Enable Noise Gate` | 내 마이크에 노이즈 게이트 활성화 | `true` |
 | **Remote Players** | `Enable Remote Noise Suppression` |다른 플레이어 마이크 음성에도 AI 노이즈 제거 적용 | `true` |
 | **Remote Players** | `Enable Remote Noise Gate` | 다른 플레이어 마이크 음성에도 노이즈 게이트 적용 | `true` |
@@ -33,18 +36,19 @@
 | **Noise Gate DSP** | `Gate Attack Time (ms)` | 어택 타임 (게이트가 열릴 때 페이드인 시간) | `25 ms` |
 | **Noise Gate DSP** | `Gate Hold Time (ms)` | 홀드 타임 (신호 감소 후 게이트를 유지하는 시간) | `200 ms` |
 | **Noise Gate DSP** | `Gate Release Time (ms)` | 릴리스 타임 (게이트가 닫힐 때 페이드아웃 시간) | `150 ms` |
+| **Test Mode** | `Test Mode Key` | 마이크 테스트 오버레이를 켜고 끄는 키 | `F7` |
 
 ---
 
 ## 📥 설치 방법 (Installation)
 
 ### Option A. 모드 매니저 사용 (r2modman / Gale)
-1. `BetterSuppression-1.0.0.zip` 파일 다운로드
+1. `BetterSuppression-1.1.0.zip` 파일 다운로드
 2. r2modman / Gale에서 **`Import local mod`** 버튼을 눌러 ZIP 파일 선택
 
 ### Option B. 수동 설치 (Manual Installation)
 1. BepInEx가 설치된 Lethal Company 게임 폴더 준비
-2. `BetterSuppression-1.0.0.zip` 압축 해제 후 `BepInEx` 폴더를 게임 설치 경로에 덮어씌우기:
+2. `BetterSuppression-1.1.0.zip` 압축 해제 후 `BepInEx` 폴더를 게임 설치 경로에 덮어씌우기:
    ```text
    Lethal Company/
    └── BepInEx/

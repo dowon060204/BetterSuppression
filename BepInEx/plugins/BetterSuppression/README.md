@@ -39,12 +39,12 @@
 ## 📥 설치 방법 (Installation)
 
 ### Option A. 모드 매니저 사용 (r2modman / Gale)
-1. `BetterSuppression-1.0.0.zip` 파일 다운로드
+1. `BetterSuppression-1.0.3.zip` 파일 다운로드
 2. r2modman / Gale에서 **`Import local mod`** 버튼을 눌러 ZIP 파일 선택
 
 ### Option B. 수동 설치 (Manual Installation)
 1. BepInEx가 설치된 Lethal Company 게임 폴더 준비
-2. `BetterSuppression-1.0.0.zip` 압축 해제 후 `BepInEx` 폴더를 게임 설치 경로에 덮어씌우기:
+2. `BetterSuppression-1.0.3.zip` 압축 해제 후 `BepInEx` 폴더를 게임 설치 경로에 덮어씌우기:
    ```text
    Lethal Company/
    └── BepInEx/

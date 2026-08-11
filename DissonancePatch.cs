@@ -5,7 +5,6 @@ using Dissonance.Audio.Playback;
 
 namespace BetterSuppression
 {
-    [HarmonyPatch]
     public static class DissonancePatch
     {
         private static VoiceAudioProcessor _processor;
@@ -13,49 +12,34 @@ namespace BetterSuppression
 
         public static void Initialize()
         {
-            _processor = new VoiceAudioProcessor();
-            _remoteProcessor = new VoiceAudioProcessor();
+            if (_processor == null) _processor = new VoiceAudioProcessor();
+            if (_remoteProcessor == null) _remoteProcessor = new VoiceAudioProcessor();
         }
 
         public static VoiceAudioProcessor Processor
         {
-            get { return _processor; }
+            get
+            {
+                if (_processor == null)
+                {
+                    _processor = new VoiceAudioProcessor();
+                    BetterSuppressionPlugin.ApplyProcessorSettings();
+                }
+                return _processor;
+            }
         }
 
         public static VoiceAudioProcessor RemoteProcessor
         {
-            get { return _remoteProcessor; }
-        }
-
-        /// <summary>
-        /// Local Player Microphone capture patch.
-        /// Filters outgoing microphone PCM audio through RNNoise & Noise Gate.
-        /// </summary>
-        [HarmonyPatch(typeof(BasicMicrophoneCapture), "ConsumeSamples")]
-        [HarmonyPostfix]
-        public static void ConsumeSamplesPostfix(ArraySegment<float> samples)
-        {
-            if (_processor == null || !_processor.IsEnabled)
-                return;
-
-            if (samples.Array != null)
+            get
             {
-                _processor.ProcessAudio(samples.Array, samples.Offset, samples.Count);
+                if (_remoteProcessor == null)
+                {
+                    _remoteProcessor = new VoiceAudioProcessor();
+                    BetterSuppressionPlugin.ApplyProcessorSettings();
+                }
+                return _remoteProcessor;
             }
-        }
-
-        /// <summary>
-        /// Remote Players Voice playback patch.
-        /// Filters incoming voice audio from other players before outputting to local speaker/headset.
-        /// </summary>
-        [HarmonyPatch(typeof(SamplePlaybackComponent), "OnAudioFilterRead")]
-        [HarmonyPostfix]
-        public static void OnAudioFilterReadPostfix(float[] data, int channels)
-        {
-            if (_remoteProcessor == null || !_remoteProcessor.IsEnabled || data == null || data.Length == 0)
-                return;
-
-            _remoteProcessor.ProcessAudio(data, 0, data.Length);
         }
 
         public static void Cleanup()
@@ -70,6 +54,44 @@ namespace BetterSuppression
                 _remoteProcessor.Dispose();
                 _remoteProcessor = null;
             }
+        }
+    }
+
+    /// <summary>
+    /// Filters local microphone audio at the very source of Dissonance capture.
+    /// Prefix on BasicMicrophoneCapture.ConsumeSamples ensures RNNoise AI & Noise Gate
+    /// process and filter the audio BEFORE Voice Activity Detection (VAD), BEFORE LethalFixes UI,
+    /// and BEFORE network encoding.
+    /// </summary>
+    [HarmonyPatch(typeof(BasicMicrophoneCapture), "ConsumeSamples")]
+    public static class BasicMicConsumePatch
+    {
+        [HarmonyPrefix]
+        public static void Prefix(ArraySegment<float> samples)
+        {
+            var proc = DissonancePatch.Processor;
+            if (proc == null || !proc.IsActive || samples.Array == null || samples.Count == 0)
+                return;
+
+            proc.ProcessAudio(samples.Array, samples.Offset, samples.Count);
+        }
+    }
+
+    /// <summary>
+    /// Remote player voice playback audio filter patch.
+    /// Filters incoming voice audio from other players before outputting to local speaker/headset.
+    /// </summary>
+    [HarmonyPatch(typeof(SamplePlaybackComponent), "OnAudioFilterRead")]
+    public static class SamplePlaybackComponentPatch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(float[] data, int channels)
+        {
+            var remoteProc = DissonancePatch.RemoteProcessor;
+            if (remoteProc == null || !remoteProc.IsActive || data == null || data.Length == 0)
+                return;
+
+            remoteProc.ProcessAudio(data, 0, data.Length);
         }
     }
 }

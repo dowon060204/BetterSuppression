@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using BepInEx;
@@ -7,6 +8,7 @@ using BepInEx.Bootstrap;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using HarmonyLib;
+using UnityEngine;
 using LethalConfig;
 using LethalConfig.ConfigItems;
 using LethalConfig.ConfigItems.Options;
@@ -19,13 +21,12 @@ namespace BetterSuppression
     {
         public const string PluginGUID = "com.lethalcompany.bettersuppression";
         public const string PluginName = "BetterSuppression";
-        public const string PluginVersion = "1.0.0";
+        public const string PluginVersion = "1.1.0";
 
         public static ManualLogSource Log { get; private set; }
 
         // Local Player Settings
         public static ConfigEntry<bool> EnableNoiseSuppression { get; private set; }
-        public static ConfigEntry<float> VADThreshold { get; private set; }
         public static ConfigEntry<bool> EnableNoiseGate { get; private set; }
 
         // Remote Players Settings (다른 플레이어 음성 노이즈 제거)
@@ -39,7 +40,11 @@ namespace BetterSuppression
         public static ConfigEntry<float> GateHoldTimeMs { get; private set; }
         public static ConfigEntry<float> GateReleaseTimeMs { get; private set; }
 
+        // Test Mode
+        public static ConfigEntry<bool> EnableTestOverlay { get; private set; }
+
         private Harmony _harmony;
+        private MicTestOverlay _micTestOverlay;
 
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern IntPtr LoadLibrary(string libname);
@@ -49,6 +54,7 @@ namespace BetterSuppression
 
         private void Awake()
         {
+            DontDestroyOnLoad(gameObject);
             Log = Logger;
 
             // 1. Preload native library (rnnoise.dll) from plugin directory
@@ -59,16 +65,7 @@ namespace BetterSuppression
                 "Local Player",
                 "Enable Noise Suppression",
                 true,
-                "Enable RNNoise AI Noise Suppression for your microphone input.\nRNNoise AI 기반 소음 억제 기능을 내 마이크에 활성화합니다."
-            );
-
-            VADThreshold = Config.Bind(
-                "Local Player",
-                "VAD Threshold",
-                0.0f,
-                new ConfigDescription(
-                    "Voice Activity Detection threshold. 0.0 = disabled, higher values require stronger speech signal.\n음성 감지 임계값입니다. 0.0은 비활성화이며, 수치가 높을수록 마이크 입력에 큰 소리가 필요합니다.",
-                    new AcceptableValueRange<float>(0.0f, 1.0f))
+                "Enable/Disable RNNoise AI Noise Suppression for your microphone input.\nRNNoise AI 기반 소음 억제 기능을 내 마이크에 활성화/비활성화합니다."
             );
 
             EnableNoiseGate = Config.Bind(
@@ -83,7 +80,7 @@ namespace BetterSuppression
                 "Remote Players",
                 "Enable Remote Noise Suppression",
                 true,
-                "Enable RNNoise AI Noise Suppression for incoming voice audio from other players.\n다른 플레이어의 마이크 음성에도 RNNoise AI 노이즈 제거를 적용합니다."
+                "Enable/Disable RNNoise AI Noise Suppression for incoming voice audio from other players.\n다른 플레이어의 마이크 음성에도 RNNoise AI 노이즈 제거를 적용합니다."
             );
 
             EnableRemoteNoiseGate = Config.Bind(
@@ -139,6 +136,14 @@ namespace BetterSuppression
                     new AcceptableValueRange<float>(0.0f, 1000.0f))
             );
 
+            // Test Mode
+            EnableTestOverlay = Config.Bind(
+                "Test Mode",
+                "Enable Test Overlay",
+                false,
+                "Enable the in-game microphone test overlay. Shows real-time dB meters, noise gate state, and frequency spectrum.\n게임 내 마이크 테스트 오버레이를 활성화합니다. 실시간 dB 미터, 노이즈 게이트 상태, 주파수 스펙트럼을 표시합니다."
+            );
+
             // 3. Register LethalConfig Explicitly if present
             if (Chainloader.PluginInfos.ContainsKey("ainavt.lc.lethalconfig"))
             {
@@ -153,7 +158,17 @@ namespace BetterSuppression
                 }
             }
 
-            // 4. Initialize Audio Processors & Harmony Patches safely
+            // 4. Create MicTestOverlay component on this GameObject
+            try
+            {
+                _micTestOverlay = gameObject.AddComponent<MicTestOverlay>();
+            }
+            catch (Exception ex)
+            {
+                Log.LogError(string.Format("Error adding MicTestOverlay: {0}", ex.Message));
+            }
+
+            // 5. Initialize Audio Processors & Harmony Patches safely
             try
             {
                 DissonancePatch.Initialize();
@@ -162,7 +177,6 @@ namespace BetterSuppression
 
                 // Local player setting change handlers
                 EnableNoiseSuppression.SettingChanged += (sender, args) => ApplyProcessorSettings();
-                VADThreshold.SettingChanged += (sender, args) => ApplyProcessorSettings();
                 EnableNoiseGate.SettingChanged += (sender, args) => ApplyProcessorSettings();
 
                 // Remote players setting change handlers
@@ -177,7 +191,7 @@ namespace BetterSuppression
                 GateReleaseTimeMs.SettingChanged += (sender, args) => ApplyProcessorSettings();
 
                 _harmony = new Harmony(PluginGUID);
-                _harmony.PatchAll(typeof(DissonancePatch));
+                _harmony.PatchAll(Assembly.GetExecutingAssembly());
 
                 Log.LogInfo(string.Format("{0} v{1} loaded successfully.", PluginName, PluginVersion));
             }
@@ -187,30 +201,30 @@ namespace BetterSuppression
             }
         }
 
-        private void ApplyProcessorSettings()
+        public static void ApplyProcessorSettings()
         {
-            if (DissonancePatch.Processor != null)
+            var proc = DissonancePatch.Processor;
+            if (proc != null)
             {
-                DissonancePatch.Processor.IsEnabled = EnableNoiseSuppression.Value;
-                DissonancePatch.Processor.VADThreshold = VADThreshold.Value;
-                DissonancePatch.Processor.EnableNoiseGate = EnableNoiseGate.Value;
-                DissonancePatch.Processor.GateCloseThresholdDb = GateCloseThresholdDb.Value;
-                DissonancePatch.Processor.GateOpenThresholdDb = GateOpenThresholdDb.Value;
-                DissonancePatch.Processor.GateAttackTimeMs = GateAttackTimeMs.Value;
-                DissonancePatch.Processor.GateHoldTimeMs = GateHoldTimeMs.Value;
-                DissonancePatch.Processor.GateReleaseTimeMs = GateReleaseTimeMs.Value;
+                proc.IsEnabled = EnableNoiseSuppression != null ? EnableNoiseSuppression.Value : true;
+                proc.EnableNoiseGate = EnableNoiseGate != null ? EnableNoiseGate.Value : true;
+                proc.GateCloseThresholdDb = GateCloseThresholdDb != null ? GateCloseThresholdDb.Value : -32.0f;
+                proc.GateOpenThresholdDb = GateOpenThresholdDb != null ? GateOpenThresholdDb.Value : -26.0f;
+                proc.GateAttackTimeMs = GateAttackTimeMs != null ? GateAttackTimeMs.Value : 25.0f;
+                proc.GateHoldTimeMs = GateHoldTimeMs != null ? GateHoldTimeMs.Value : 200.0f;
+                proc.GateReleaseTimeMs = GateReleaseTimeMs != null ? GateReleaseTimeMs.Value : 150.0f;
             }
 
-            if (DissonancePatch.RemoteProcessor != null)
+            var remoteProc = DissonancePatch.RemoteProcessor;
+            if (remoteProc != null)
             {
-                DissonancePatch.RemoteProcessor.IsEnabled = EnableRemoteNoiseSuppression.Value;
-                DissonancePatch.RemoteProcessor.VADThreshold = VADThreshold.Value;
-                DissonancePatch.RemoteProcessor.EnableNoiseGate = EnableRemoteNoiseGate.Value;
-                DissonancePatch.RemoteProcessor.GateCloseThresholdDb = GateCloseThresholdDb.Value;
-                DissonancePatch.RemoteProcessor.GateOpenThresholdDb = GateOpenThresholdDb.Value;
-                DissonancePatch.RemoteProcessor.GateAttackTimeMs = GateAttackTimeMs.Value;
-                DissonancePatch.RemoteProcessor.GateHoldTimeMs = GateHoldTimeMs.Value;
-                DissonancePatch.RemoteProcessor.GateReleaseTimeMs = GateReleaseTimeMs.Value;
+                remoteProc.IsEnabled = EnableRemoteNoiseSuppression != null ? EnableRemoteNoiseSuppression.Value : true;
+                remoteProc.EnableNoiseGate = EnableRemoteNoiseGate != null ? EnableRemoteNoiseGate.Value : true;
+                remoteProc.GateCloseThresholdDb = GateCloseThresholdDb != null ? GateCloseThresholdDb.Value : -32.0f;
+                remoteProc.GateOpenThresholdDb = GateOpenThresholdDb != null ? GateOpenThresholdDb.Value : -26.0f;
+                remoteProc.GateAttackTimeMs = GateAttackTimeMs != null ? GateAttackTimeMs.Value : 25.0f;
+                remoteProc.GateHoldTimeMs = GateHoldTimeMs != null ? GateHoldTimeMs.Value : 200.0f;
+                remoteProc.GateReleaseTimeMs = GateReleaseTimeMs != null ? GateReleaseTimeMs.Value : 150.0f;
             }
         }
 
@@ -219,30 +233,51 @@ namespace BetterSuppression
             try
             {
                 string pluginDir = Path.GetDirectoryName(Info.Location);
-                if (string.IsNullOrEmpty(pluginDir)) return;
+                Log.LogInfo(string.Format("Plugin location: {0}", Info.Location));
+                Log.LogInfo(string.Format("Native DLL search directory: {0}", pluginDir));
+
+                if (string.IsNullOrEmpty(pluginDir))
+                {
+                    Log.LogError("Plugin directory is null or empty, cannot load rnnoise.dll!");
+                    return;
+                }
 
                 SetDllDirectory(pluginDir);
 
+                bool anyLoaded = false;
                 string[] nativeDlls = new string[] { "rnnoise.dll", "librnnoise.dll" };
                 foreach (var dll in nativeDlls)
                 {
                     string fullPath = Path.Combine(pluginDir, dll);
-                    if (File.Exists(fullPath))
+                    bool exists = File.Exists(fullPath);
+                    Log.LogInfo(string.Format("Checking for native DLL: {0} -> {1}", fullPath, exists ? "FOUND" : "NOT FOUND"));
+
+                    if (exists)
                     {
                         IntPtr handle = LoadLibrary(fullPath);
-                        if (handle != IntPtr.Zero && Log != null)
+                        if (handle != IntPtr.Zero)
                         {
-                            Log.LogInfo(string.Format("Preloaded native DLL: {0}", fullPath));
+                            Log.LogInfo(string.Format("Successfully preloaded native DLL: {0}", fullPath));
+                            anyLoaded = true;
+                        }
+                        else
+                        {
+                            int errorCode = Marshal.GetLastWin32Error();
+                            Log.LogError(string.Format("LoadLibrary FAILED for {0}, Win32 error code: {1}", fullPath, errorCode));
                         }
                     }
+                }
+
+                if (!anyLoaded)
+                {
+                    Log.LogWarning("=== rnnoise.dll was NOT found! ===");
+                    Log.LogWarning(string.Format("Please place rnnoise.dll in: {0}", pluginDir));
+                    Log.LogWarning("RNNoise noise suppression will be DISABLED. Noise Gate will still work.");
                 }
             }
             catch (Exception ex)
             {
-                if (Log != null)
-                {
-                    Log.LogWarning(string.Format("Native library preload warning: {0}", ex.Message));
-                }
+                Log.LogError(string.Format("Native library preload error: {0}", ex.Message));
             }
         }
 
@@ -253,7 +288,6 @@ namespace BetterSuppression
 
             // Local Player Controls
             LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(EnableNoiseSuppression, new BoolCheckBoxOptions { RequiresRestart = false }));
-            LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(VADThreshold, new FloatSliderOptions { Min = 0.0f, Max = 1.0f, RequiresRestart = false }));
             LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(EnableNoiseGate, new BoolCheckBoxOptions { RequiresRestart = false }));
 
             // Remote Players Controls
@@ -266,6 +300,9 @@ namespace BetterSuppression
             LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateAttackTimeMs, new FloatSliderOptions { Min = 0.0f, Max = 200.0f, RequiresRestart = false }));
             LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateHoldTimeMs, new FloatSliderOptions { Min = 0.0f, Max = 1000.0f, RequiresRestart = false }));
             LethalConfigManager.AddConfigItem(new FloatSliderConfigItem(GateReleaseTimeMs, new FloatSliderOptions { Min = 0.0f, Max = 1000.0f, RequiresRestart = false }));
+
+            // Test Mode
+            LethalConfigManager.AddConfigItem(new BoolCheckBoxConfigItem(EnableTestOverlay, new BoolCheckBoxOptions { RequiresRestart = false }));
         }
 
         private void OnDestroy()
