@@ -1,9 +1,0 @@
-{
-    "name": "BetterSuppression",
-    "version_number": "1.0.3",
-    "website_url": "https://github.com/lethalcompany/BetterSuppression",
-    "description": "RNNoise AI 딥러닝 기반 마이크 노이즈 제거 & 노이즈 게이트 모드. LethalConfig 실시간 인게임 UI 완벽 지원.",
-    "dependencies": [
-        "BepInEx-BepInExPack-5.4.2100"
-    ]
-}
