@@ -1,69 +1,69 @@
-# 🎙️ BetterSuppression
+# BetterSuppression
 
-> **RNNoise AI 딥러닝 기반 실시간 마이크 노이즈 제거 & 프로급 노이즈 게이트 모드**
-> Real-time AI-powered Microphone & Remote Player Voice Noise Suppression & DSP Noise Gate for Lethal Company.
+> English description is provided below.
 
----
+BetterSuppression은 클라이언트 사이드 소음 억제 모드입니다.
 
-## 💡 주요 기능 (Features)
+마이크 입력에 **RNNoise**와 **노이즈 게이트**를 적용하여 주변의 잡음과 불필요한 소리를 줄여줍니다.
 
-* **🧠 RNNoise AI 딥러닝 노이즈 제거 Engine**:
-  * 키보드 타건음, 팬 소음, 주변 백그라운드 잡음을 AI 딥러닝 모델로 실시간 필터링합니다.
-* **👥 다른 플레이어 음성 잡음 제거 (Remote Player Voice Filtering)**:
-  * 내 마이크뿐만 아니라 **다른 플레이어가 전달하는 음성 수신 데이터에도 RNNoise AI 노이즈 제거 및 게이트를 실시간 적용**하여 팀원의 노이즈 있는 마이크 소리도 깨끗하게 필터링하여 들려줍니다.
-* **🎚️ 프로 스튜디오급 DSP 노이즈 게이트 (Noise Gate)**:
-  * **Hysteresis (히스테리시스 Dual Threshold)**: 개방(-26dB)과 폐쇄(-32dB) 임계값을 분리하여 음성이 끊기는 현상(Chatter)을 차단합니다.
-  * **Attack / Hold / Release 스무딩**: 25ms 어택, 200ms 홀드, 150ms 릴리스 타임으로 음성 시작과 끝이 끊김 없이 부드럽게 전달됩니다.
-* **🎛️ LethalConfig 인게임 실시간 UI 지원**:
-  * 게임 재시작 없이 인게임 메뉴에서 내 마이크, 다른 플레이어 마이크, 노이즈 게이트 슬라이더를 독립적으로 즉시 조절할 수 있습니다.
-* **🔬 마이크 테스트 오버레이 (Mic Test Mode)**:
-  * **F7 키**를 눌러 실시간 마이크 진단 화면을 표시합니다.
-  * FFT 주파수 스펙트럼, dB 레벨 미터, 노이즈 게이트 상태(Open/Hold/Closing/Closed), RNNoise 상태를 한눈에 확인할 수 있습니다.
-  * 노이즈 게이트와 소음 억제가 실제로 작동하는지 시각적으로 검증할 수 있습니다.
+## 기능
 
----
+### 소음 억제
 
-## ⚙️ 인게임 설정 메뉴 (LethalConfig)
+**RNNoise**를 사용하여 마이크에 섞여 들어오는 주변 소음을 실시간으로 억제합니다.
 
-| 카테고리 | 설정 항목명 | 설명 | 기본값 |
-| :--- | :--- | :--- | :--- |
-| **Local Player** | `Enable Noise Suppression` | 내 마이크에 RNNoise AI 노이즈 제거 활성화/비활성화 | `true` |
-| **Local Player** | `Enable Noise Gate` | 내 마이크에 노이즈 게이트 활성화 | `true` |
-| **Remote Players** | `Enable Remote Noise Suppression` |다른 플레이어 마이크 음성에도 AI 노이즈 제거 적용 | `true` |
-| **Remote Players** | `Enable Remote Noise Gate` | 다른 플레이어 마이크 음성에도 노이즈 게이트 적용 | `true` |
-| **Noise Gate DSP** | `Gate Close Threshold (dB)` | 폐쇄 임계값 (신호가 설정값 미만 시 릴리스 시작) | `-32.0 dB` |
-| **Noise Gate DSP** | `Gate Open Threshold (dB)` | 개방 임계값 (노이즈 게이트가 열리는 신호 기준) | `-26.0 dB` |
-| **Noise Gate DSP** | `Gate Attack Time (ms)` | 어택 타임 (게이트가 열릴 때 페이드인 시간) | `25 ms` |
-| **Noise Gate DSP** | `Gate Hold Time (ms)` | 홀드 타임 (신호 감소 후 게이트를 유지하는 시간) | `200 ms` |
-| **Noise Gate DSP** | `Gate Release Time (ms)` | 릴리스 타임 (게이트가 닫힐 때 페이드아웃 시간) | `150 ms` |
-| **Test Mode** | `Test Mode Key` | 마이크 테스트 오버레이를 켜고 끄는 키 | `F7` |
+키보드 소리, 컴퓨터 팬 소리, 생활 소음 등 지속적으로 발생하는 배경 소음을 줄이는 데 효과적입니다.
 
----
+### 노이즈 게이트
 
-## 📥 설치 방법 (Installation)
+설정한 기준보다 작은 소리를 자동으로 차단합니다.
 
-### Option A. 모드 매니저 사용 (r2modman / Gale)
-1. `BetterSuppression-1.1.0.zip` 파일 다운로드
-2. r2modman / Gale에서 **`Import local mod`** 버튼을 눌러 ZIP 파일 선택
+노이즈 게이트의 값을 **직접 수정하여 자신의 환경에 맞게 조절**할 수 있습니다.
 
-### Option B. 수동 설치 (Manual Installation)
-1. BepInEx가 설치된 Lethal Company 게임 폴더 준비
-2. `BetterSuppression-1.1.0.zip` 압축 해제 후 `BepInEx` 폴더를 게임 설치 경로에 덮어씌우기:
-   ```text
-   Lethal Company/
-   └── BepInEx/
-       ├── config/
-       │   └── com.lethalcompany.bettersuppression.cfg
-       └── plugins/
-           └── BetterSuppression/
-               ├── BetterSuppression.dll
-               ├── manifest.json
-               ├── icon.png
-               └── README.md
-   ```
+- 작은 배경 소음 차단
+- 말하지 않을 때 발생하는 잡음 감소
+- Threshold 등의 값을 직접 조절 가능
 
----
+> **참고:** 기본 설정이 강하게 적용되어 있어 `음...`과 같은 작은 소리도 차단될 수 있습니다.  
+> 본인의 발음 및 말하는 패턴에 맞게 값을 조절하는 것을 권장합니다.
 
-## 📄 라이선스 (License)
-This project is licensed under the MIT License.
-Powered by RNNoise AI Engine & HarmonyLib.
+### 다른 사람의 마이크 잡음 제거
+
+음성 채팅에서 **다른 사람의 마이크에서 발생하는 잡음도 내 컴퓨터에서 제거**할 수 있습니다.
+
+단, 이 기능은 **본인에게 들리는 소리에만 적용됩니다.**
+
+즉, 상대방의 마이크 입력 자체가 변경되는 것은 아니며, 다른 사람에게 들리는 상대방의 음성에는 영향을 주지 않습니다.
+
+BetterSuppression is a client-side noise suppression mod.
+
+It applies **RNNoise** and a **Noise Gate** to microphone input to reduce background noise and unwanted sounds.
+
+## Features
+
+### Noise Suppression
+
+Uses **RNNoise** to suppress background noise from your microphone in real time.
+
+It is effective at reducing continuous background sounds such as keyboard noise, computer fans, and other ambient noise.
+
+### Noise Gate
+
+Automatically blocks sounds below a specified volume threshold.
+
+The Noise Gate settings can be **manually adjusted** to suit your environment.
+
+- Reduces quiet background noise
+- Reduces noise when you are not speaking
+- Allows manual adjustment of the Threshold and other settings
+
+> **Note:** The default settings are relatively aggressive, so quiet sounds such as "um..." may also be blocked.  
+> Adjust the settings according to your voice and speaking style.
+
+### Suppressing Other People's Microphone Noise
+
+You can also reduce **noise from other people's microphones** in voice chat.
+
+However, this processing is **only applied to what you hear**.
+
+In other words, it does not modify the other person's actual microphone input and does not affect what other people hear from them.
