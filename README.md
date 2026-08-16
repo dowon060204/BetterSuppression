@@ -2,6 +2,8 @@
 
 > English description is provided below.
 
+주의 : 원인을 모르겠으나 'https://thunderstore.io/c/lethal-company/p/Fusition/BetterSpectate/' 해당 모드와 같이 적용해야 정상 작동합니다.
+
 BetterSuppression은 클라이언트 사이드 소음 억제 모드입니다.
 
 마이크 입력에 **RNNoise**와 **노이즈 게이트**를 적용하여 주변의 잡음과 불필요한 소리를 줄여줍니다.
