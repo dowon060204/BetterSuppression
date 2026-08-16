@@ -37,6 +37,8 @@ BetterSuppression은 클라이언트 사이드 소음 억제 모드입니다.
 
 즉, 상대방의 마이크 입력 자체가 변경되는 것은 아니며, 다른 사람에게 들리는 상대방의 음성에는 영향을 주지 않습니다.
 
+Note: I’m not sure what caused it, but it works properly only when applied like the mod at https://thunderstore.io/c/lethal-company/p/Fusition/BetterSpectate/' .
+
 BetterSuppression is a client-side noise suppression mod.
 
 It applies **RNNoise** and a **Noise Gate** to microphone input to reduce background noise and unwanted sounds.
